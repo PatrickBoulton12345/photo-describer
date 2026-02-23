@@ -2,15 +2,14 @@
  * generate-bulk.js
  * POST /api/generate-bulk
  *
- * Processes a batch of product rows sequentially through Claude to produce
- * platform-specific e-commerce copy for each row.
+ * Processes a batch of product rows sequentially through the Groq API to
+ * produce platform-specific e-commerce copy for each row.
  *
  * Auth: Bearer token verified against Supabase.
  * Limit: Max 500 rows per request.
  * Usage: Each successfully generated row consumes one credit/description.
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
 const { createClient } = require('@supabase/supabase-js');
 
 // ---------------------------------------------------------------------------
@@ -55,7 +54,7 @@ Return a JSON object with EXACTLY this key:
  * Generates listing content for a single product row.
  * Returns the parsed JSON output or throws on failure.
  */
-async function generateForRow(anthropic, row, platform) {
+async function generateForRow(row, platform) {
   const platformInstruction =
     PLATFORM_INSTRUCTIONS[platform] || PLATFORM_INSTRUCTIONS.generic;
 
@@ -75,14 +74,31 @@ ${contextLines.join('\n')}
 
 Return only valid JSON matching the specified format.`;
 
-  const claudeResponse = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 2048,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
+  const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.7,
+      max_tokens: 2048,
+      response_format: { type: 'json_object' },
+    }),
   });
 
-  const rawText = claudeResponse.content[0]?.text || '';
+  if (!groqRes.ok) {
+    const errBody = await groqRes.text();
+    throw new Error(`Groq API returned ${groqRes.status}: ${errBody}`);
+  }
+
+  const groqResponse = await groqRes.json();
+  const rawText = groqResponse.choices[0]?.message?.content || '';
   const cleaned = rawText
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
@@ -201,7 +217,6 @@ module.exports = async (req, res) => {
   // ------------------------------------------------------------------
   // 4. Process rows sequentially
   // ------------------------------------------------------------------
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const results = [];
   let succeeded = 0;
   let failed = 0;
@@ -214,7 +229,7 @@ module.exports = async (req, res) => {
     const row = rows[i];
 
     try {
-      const output = await generateForRow(anthropic, row, platform);
+      const output = await generateForRow(row, platform);
 
       results.push({ row, output, success: true });
       succeeded += 1;

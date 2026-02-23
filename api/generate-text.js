@@ -3,14 +3,12 @@
  * POST /api/generate-text
  *
  * Text-only generation endpoint.  Accepts JSON product details and calls
- * the Anthropic Claude API (without vision) to produce platform-specific
- * e-commerce copy.
+ * the Groq API (without vision) to produce platform-specific e-commerce copy.
  *
  * Auth: Bearer token verified against Supabase.
  * Rate limit: 10 requests per minute per user (in-memory store).
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
 const { createClient } = require('@supabase/supabase-js');
 
 // ---------------------------------------------------------------------------
@@ -233,28 +231,46 @@ ${contextLines.join('\n')}
 Return only valid JSON matching the specified format.`;
 
   // ------------------------------------------------------------------
-  // 6. Call the Anthropic Claude API (text only)
+  // 6. Call the Groq API (text only)
   // ------------------------------------------------------------------
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const systemPrompt = buildSystemPrompt(platform, brandVoice);
 
-  let claudeResponse;
+  let groqResponse;
   try {
-    claudeResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+      }),
     });
-  } catch (claudeErr) {
-    console.error('Anthropic API error:', claudeErr);
+
+    if (!groqRes.ok) {
+      const errBody = await groqRes.text();
+      console.error('Groq API error response:', errBody);
+      throw new Error(`Groq API returned ${groqRes.status}`);
+    }
+
+    groqResponse = await groqRes.json();
+  } catch (groqErr) {
+    console.error('Groq API error:', groqErr);
     return res.status(502).json({ error: 'Failed to call AI service. Please try again.' });
   }
 
   // ------------------------------------------------------------------
-  // 7. Parse Claude's JSON response
+  // 7. Parse the Groq JSON response
   // ------------------------------------------------------------------
-  const rawText = claudeResponse.content[0]?.text || '';
+  const rawText = groqResponse.choices[0]?.message?.content || '';
   let generatedContent;
 
   try {

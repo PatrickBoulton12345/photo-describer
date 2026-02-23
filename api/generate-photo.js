@@ -3,14 +3,13 @@
  * POST /api/generate-photo
  *
  * Accepts a multipart FormData payload containing an image plus optional
- * product context and brand-voice settings.  Calls the Anthropic Claude
- * vision API and returns platform-specific e-commerce copy as JSON.
+ * product context and brand-voice settings.  Calls the Groq vision API and
+ * returns platform-specific e-commerce copy as JSON.
  *
  * Auth: Bearer token verified against Supabase.
  * Rate limit: 10 requests per minute per user (in-memory store).
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
 const { createClient } = require('@supabase/supabase-js');
 
 // ---------------------------------------------------------------------------
@@ -328,56 +327,67 @@ module.exports = async (req, res) => {
   }
 
   // ------------------------------------------------------------------
-  // 5. Call the Anthropic Claude API (vision)
+  // 5. Call the Groq API (vision)
   // ------------------------------------------------------------------
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
   const systemPrompt = buildSystemPrompt(platform, brandVoice);
   const contextText = buildContextText(context);
 
-  // Ensure the MIME type is one Claude supports
+  // Ensure the MIME type is one the model supports
   const supportedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   const safeMediaType = supportedMimeTypes.includes(imageMimeType)
     ? imageMimeType
     : 'image/jpeg';
 
-  let claudeResponse;
+  let groqResponse;
   try {
-    claudeResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: safeMediaType,
-                data: imageBase64,
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: { url: `data:${safeMediaType};base64,${imageBase64}` },
               },
-            },
-            {
-              type: 'text',
-              text: `Please analyse this product image and generate ${platform} listing content.${contextText}
+              {
+                type: 'text',
+                text: `Please analyse this product image and generate ${platform} listing content.${contextText}
 
 Return only valid JSON matching the specified format.`,
-            },
-          ],
-        },
-      ],
+              },
+            ],
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+      }),
     });
-  } catch (claudeErr) {
-    console.error('Anthropic API error:', claudeErr);
+
+    if (!groqRes.ok) {
+      const errBody = await groqRes.text();
+      console.error('Groq API error response:', errBody);
+      throw new Error(`Groq API returned ${groqRes.status}`);
+    }
+
+    groqResponse = await groqRes.json();
+  } catch (groqErr) {
+    console.error('Groq API error:', groqErr);
     return res.status(502).json({ error: 'Failed to call AI service. Please try again.' });
   }
 
   // ------------------------------------------------------------------
-  // 6. Parse Claude's JSON response
+  // 6. Parse the Groq JSON response
   // ------------------------------------------------------------------
-  const rawText = claudeResponse.content[0]?.text || '';
+  const rawText = groqResponse.choices[0]?.message?.content || '';
   let generatedContent;
 
   try {
