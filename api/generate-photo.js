@@ -263,8 +263,16 @@ module.exports = async (req, res) => {
         req.on('data', (c) => { data += c; });
         req.on('end', () => resolve(JSON.parse(data)));
       });
-      imageBase64 = body.image;
-      imageMimeType = body.imageMimeType || 'image/jpeg';
+      // Handle data URL format (data:image/jpeg;base64,xxx) from frontend
+      const rawImage = body.image || '';
+      const dataUrlMatch = rawImage.match(/^data:([^;]+);base64,(.+)$/s);
+      if (dataUrlMatch) {
+        imageMimeType = dataUrlMatch[1];
+        imageBase64 = dataUrlMatch[2];
+      } else {
+        imageBase64 = rawImage;
+        imageMimeType = body.imageMimeType || 'image/jpeg';
+      }
       platform = body.platform || 'generic';
       context = {
         productName: body.productName,
@@ -430,5 +438,5 @@ Return only valid JSON matching the specified format.`,
     output: generatedContent,
   });
 
-  return res.status(200).json({ result: generatedContent });
+  return res.status(200).json({ output: generatedContent });
 };

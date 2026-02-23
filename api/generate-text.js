@@ -313,5 +313,5 @@ Return only valid JSON matching the specified format.`;
     output: generatedContent,
   });
 
-  return res.status(200).json({ result: generatedContent });
+  return res.status(200).json({ output: generatedContent });
 };
