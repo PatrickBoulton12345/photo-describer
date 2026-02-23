@@ -790,9 +790,9 @@ async function init() {
     } else {
       showPage('landing');
     }
-    // Auth state listener
+    // Auth state listener — handle both SIGNED_IN and INITIAL_SESSION (OAuth redirect)
     sb.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         currentUser = session.user;
         await loadUserData();
         showPage('app');
