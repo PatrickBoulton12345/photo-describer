@@ -781,18 +781,12 @@ async function init() {
   // Init Supabase
   if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
     sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      currentUser = session.user;
-      await loadUserData();
-      showPage('app');
-      navigateTo('dashboard');
-    } else {
-      showPage('landing');
-    }
-    // Auth state listener — handle both SIGNED_IN and INITIAL_SESSION (OAuth redirect)
-    sb.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+
+    // Use onAuthStateChange as the single source of truth for auth state.
+    // This correctly handles OAuth redirects where tokens are in the URL hash.
+    const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event, !!session);
+      if (session && session.user) {
         currentUser = session.user;
         await loadUserData();
         showPage('app');
@@ -801,10 +795,12 @@ async function init() {
         currentUser = null;
         userProfile = null;
         showPage('landing');
+      } else if (event === 'INITIAL_SESSION' && !session) {
+        // No existing session — show landing
+        showPage('landing');
       }
     });
   } else {
-    // Demo mode — no Supabase configured
     showPage('landing');
     console.warn('PhotoLister: Supabase not configured. Set CONFIG.SUPABASE_URL and CONFIG.SUPABASE_ANON_KEY.');
   }
@@ -823,16 +819,8 @@ function showPage(page) {
   document.getElementById('app').classList.toggle('hidden', page !== 'app');
 }
 
-function showAuth(tab) {
+function showAuth() {
   showPage('auth');
-  switchAuthTab(tab || 'login');
-}
-
-function switchAuthTab(tab) {
-  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.getElementById('signup-name-field').classList.toggle('hidden', tab !== 'signup');
-  document.getElementById('auth-submit-btn').textContent = tab === 'signup' ? 'Create account' : 'Log in';
-  document.getElementById('auth-form').dataset.mode = tab;
 }
 
 function navigateTo(view) {
