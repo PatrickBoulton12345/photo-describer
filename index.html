@@ -780,7 +780,15 @@ async function init() {
 
   // Init Supabase
   if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
-    sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+      auth: {
+        flowType: 'implicit',
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: 'pd-auth',
+      }
+    });
 
     // Use onAuthStateChange as the single source of truth for auth state.
     // This correctly handles OAuth redirects where tokens are in the URL hash.
