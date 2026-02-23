@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Describer — AI Product Descriptions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--primary:#635bff;--primary-hover:#5046e5;--primary-light:#ededff;
+--bg:#ffffff;--bg2:#f7f8fa;--surface:#fff;--border:#e3e8ef;
+--text:#0a2540;--text2:#425466;--text3:#8898aa;
+--success:#0cce6b;--warning:#f5a623;--error:#ff4444;
+--radius:8px;--radius-lg:12px;
+--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-lg:0 4px 16px rgba(0,0,0,.1);
+--font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+--sidebar-w:240px;--header-h:60px;
+}
+[data-theme="dark"]{
+--bg:#09090b;--bg2:#18181b;--surface:#1c1c1f;--border:#27272a;
+--text:#fafafa;--text2:#a1a1aa;--text3:#52525b;
+--primary-light:#1e1b4b;--shadow:0 1px 3px rgba(0,0,0,.4);--shadow-lg:0 4px 16px rgba(0,0,0,.4);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);color:var(--text);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+img{max-width:100%}
+.hidden{display:none!important}
+button,.btn{font-family:var(--font);cursor:pointer;border:none;font-size:.875rem;font-weight:600;border-radius:var(--radius);padding:.625rem 1.25rem;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,91,255,.3)}
+.btn-secondary{background:var(--bg2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+.btn-ghost{background:transparent;color:var(--text2);padding:.5rem .75rem}
+.btn-ghost:hover{color:var(--text);background:var(--bg2)}
+.btn-sm{padding:.375rem .75rem;font-size:.8125rem}
+.btn-lg{padding:.75rem 2rem;font-size:1rem}
+.btn-block{width:100%;display:block}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+input[type="text"],input[type="email"],input[type="password"],input[type="number"],textarea,select{
+font-family:var(--font);font-size:.875rem;padding:.625rem .75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);width:100%;transition:border-color .15s;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,91,255,.1)}
+textarea{resize:vertical;min-height:80px}
+label{display:block;font-size:.8125rem;font-weight:600;color:var(--text2);margin-bottom:.375rem}
+.form-group{margin-bottom:1rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;box-shadow:var(--shadow)}
+.badge{display:inline-block;font-size:.75rem;font-weight:600;padding:.125rem .5rem;border-radius:99px;background:var(--primary-light);color:var(--primary)}
+
+/* Toast */
+#toast-wrap{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem}
+.toast{padding:.75rem 1rem;border-radius:var(--radius);font-size:.875rem;font-weight:500;color:#fff;animation:slideIn .3s;max-width:360px;display:flex;align-items:center;gap:.5rem}
+.toast-success{background:#059669}.toast-error{background:#dc2626}.toast-info{background:var(--primary)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Landing */
+#landing{min-height:100vh}
+.land-nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;max-width:1200px;margin:0 auto}
+.land-logo{font-size:1.25rem;font-weight:800;color:var(--text)}
+.land-logo span{color:var(--primary)}
+.land-nav-links{display:flex;gap:1.5rem;align-items:center}
+.land-nav-links a{color:var(--text2);font-size:.875rem;font-weight:500}
+.hero{text-align:center;padding:5rem 2rem 4rem;max-width:800px;margin:0 auto}
+.hero h1{font-size:3.5rem;font-weight:800;line-height:1.1;margin-bottom:1.25rem;letter-spacing:-.02em}
+.hero h1 span{background:linear-gradient(135deg,var(--primary),#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.25rem;color:var(--text2);margin-bottom:2rem;max-width:600px;margin-left:auto;margin-right:auto}
+.hero-cta{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+.hero-badges{display:flex;gap:1rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap}
+.hero-badges span{font-size:.8125rem;color:var(--text3);display:flex;align-items:center;gap:.25rem}
+
+.features{padding:4rem 2rem;max-width:1100px;margin:0 auto}
+.features h2{text-align:center;font-size:2rem;font-weight:700;margin-bottom:.75rem}
+.features>p{text-align:center;color:var(--text2);margin-bottom:3rem}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem}
+.feat-card{padding:1.5rem;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
+.feat-card .feat-icon{width:40px;height:40px;border-radius:var(--radius);background:var(--primary-light);display:flex;align-items:center;justify-content:center;margin-bottom:1rem;font-size:1.25rem}
+.feat-card h3{font-size:1rem;font-weight:700;margin-bottom:.5rem}
+.feat-card p{font-size:.875rem;color:var(--text2)}
+
+.how-it-works{padding:4rem 2rem;background:var(--bg2)}
+.how-it-works .inner{max-width:900px;margin:0 auto}
+.how-it-works h2{text-align:center;font-size:2rem;font-weight:700;margin-bottom:3rem}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}
+.step{text-align:center}
+.step-num{width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;font-weight:700;font-size:1.25rem;display:flex;align-items:center;justify-content:center;margin:0 auto .75rem}
+.step h3{font-size:1rem;font-weight:700;margin-bottom:.375rem}
+.step p{font-size:.875rem;color:var(--text2)}
+
+.pricing-section{padding:4rem 2rem;max-width:1100px;margin:0 auto}
+.pricing-section h2{text-align:center;font-size:2rem;font-weight:700;margin-bottom:.5rem}
+.pricing-section>p{text-align:center;color:var(--text2);margin-bottom:2.5rem}
+.price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-bottom:3rem}
+.price-card{border:1px solid var(--border);border-radius:var(--radius-lg);padding:2rem;background:var(--surface);position:relative;transition:border-color .2s}
+.price-card.popular{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+.price-card.popular::before{content:"Most Popular";position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;font-size:.75rem;font-weight:600;padding:.25rem .75rem;border-radius:99px}
+.price-card h3{font-size:1.125rem;font-weight:700;margin-bottom:.25rem}
+.price-card .price{font-size:2.5rem;font-weight:800;margin:.75rem 0 .5rem}
+.price-card .price span{font-size:.875rem;font-weight:500;color:var(--text2)}
+.price-card ul{list-style:none;margin:1rem 0 1.5rem}
+.price-card ul li{font-size:.875rem;color:var(--text2);padding:.375rem 0;display:flex;align-items:center;gap:.5rem}
+.price-card ul li::before{content:"✓";color:var(--success);font-weight:700}
+
+.credits-section{text-align:center;padding:2rem;background:var(--bg2);border-radius:var(--radius-lg);margin-top:1rem}
+.credits-section h3{font-size:1.25rem;font-weight:700;margin-bottom:.5rem}
+.credits-section p{color:var(--text2);font-size:.875rem;margin-bottom:1.5rem}
+.credit-packs{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.credit-pack{border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;background:var(--surface);text-align:center;min-width:140px}
+.credit-pack .amount{font-size:1.5rem;font-weight:700}
+.credit-pack .cprice{font-size:1rem;color:var(--primary);font-weight:600;margin:.25rem 0}
+.credit-pack .per{font-size:.75rem;color:var(--text3)}
+
+.land-footer{text-align:center;padding:2rem;color:var(--text3);font-size:.8125rem;border-top:1px solid var(--border);margin-top:3rem}
+
+/* Auth */
+#auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--bg2)}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:2rem;max-width:400px;width:100%;box-shadow:var(--shadow-lg)}
+.auth-card h2{font-size:1.5rem;font-weight:700;text-align:center;margin-bottom:.25rem}
+.auth-card p{text-align:center;color:var(--text2);font-size:.875rem;margin-bottom:1.5rem}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+.auth-tab{flex:1;text-align:center;padding:.625rem;font-weight:600;font-size:.875rem;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.auth-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.auth-divider{display:flex;align-items:center;gap:.75rem;margin:1.25rem 0;color:var(--text3);font-size:.8125rem}
+.auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--border)}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.625rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);font-weight:500;font-size:.875rem;color:var(--text);cursor:pointer;transition:all .15s}
+.btn-google:hover{background:var(--bg2)}
+.auth-footer{text-align:center;margin-top:1rem;font-size:.8125rem;color:var(--text3)}
+
+/* App Layout */
+#app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transition:transform .2s}
+.sidebar-logo{padding:1rem 1.25rem;font-size:1.125rem;font-weight:800;border-bottom:1px solid var(--border)}
+.sidebar-logo span{color:var(--primary)}
+.sidebar-nav{flex:1;padding:.75rem;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem .75rem;border-radius:var(--radius);font-size:.875rem;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;margin-bottom:2px}
+.nav-item:hover{background:var(--bg2);color:var(--text)}
+.nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.nav-section{font-size:.6875rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:.75rem .75rem .375rem;margin-top:.5rem}
+.sidebar-footer{padding:1rem;border-top:1px solid var(--border)}
+.sidebar-user{display:flex;align-items:center;gap:.625rem;font-size:.8125rem}
+.sidebar-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem}
+
+.app-main{flex:1;margin-left:var(--sidebar-w)}
+.app-header{height:var(--header-h);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;background:var(--surface);position:sticky;top:0;z-index:30}
+.app-header h1{font-size:1.125rem;font-weight:700}
+.header-actions{display:flex;align-items:center;gap:.75rem}
+.credit-pill{display:flex;align-items:center;gap:.375rem;font-size:.8125rem;font-weight:600;padding:.375rem .75rem;border-radius:99px;background:var(--primary-light);color:var(--primary)}
+.theme-toggle{width:36px;height:36px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--bg2);border:1px solid var(--border);font-size:1rem;transition:all .15s}
+.theme-toggle:hover{border-color:var(--primary)}
+.mobile-menu-btn{display:none;width:36px;height:36px;border-radius:var(--radius);align-items:center;justify-content:center;cursor:pointer;background:none;border:1px solid var(--border);font-size:1.25rem}
+
+.app-content{padding:1.5rem;max-width:1000px;margin:0 auto}
+.page-title{font-size:1.5rem;font-weight:700;margin-bottom:.25rem}
+.page-desc{color:var(--text2);font-size:.875rem;margin-bottom:1.5rem}
+
+/* Dashboard */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+.stat-card{padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}
+.stat-card .stat-label{font-size:.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.stat-card .stat-value{font-size:1.75rem;font-weight:700;margin-top:.25rem}
+.stat-card .stat-sub{font-size:.8125rem;color:var(--text2);margin-top:.125rem}
+.quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem}
+.quick-action{display:flex;flex-direction:column;align-items:center;text-align:center;padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-lg);cursor:pointer;transition:all .15s;background:var(--surface)}
+.quick-action:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.quick-action .qa-icon{font-size:1.5rem;margin-bottom:.5rem}
+.quick-action .qa-label{font-size:.875rem;font-weight:600}
+
+/* Generate */
+.gen-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem;max-width:300px}
+.gen-tab{flex:1;text-align:center;padding:.625rem;font-weight:600;font-size:.875rem;background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .15s;border:none}
+.gen-tab.active{background:var(--primary);color:#fff}
+
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-lg);padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2);max-width:600px;margin:0 auto 1.5rem}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.upload-zone .uz-icon{font-size:2.5rem;margin-bottom:.75rem}
+.upload-zone h3{font-size:1rem;font-weight:600;margin-bottom:.25rem}
+.upload-zone p{font-size:.8125rem;color:var(--text3)}
+.upload-preview{max-width:600px;margin:0 auto 1.5rem;position:relative}
+.upload-preview img{width:100%;border-radius:var(--radius-lg);border:1px solid var(--border)}
+.upload-preview .remove-img{position:absolute;top:.5rem;right:.5rem;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
+
+.context-fields{max-width:600px;margin:0 auto 1.5rem}
+.context-toggle{font-size:.875rem;font-weight:600;color:var(--primary);cursor:pointer;margin-bottom:1rem;display:flex;align-items:center;gap:.375rem}
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.fields-grid .full{grid-column:1/-1}
+
+.platform-select{margin-bottom:1.5rem;max-width:600px;margin-left:auto;margin-right:auto}
+.platform-select h3{font-size:.875rem;font-weight:600;margin-bottom:.75rem;text-align:center}
+.platform-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem}
+.platform-opt{padding:.75rem .5rem;border:2px solid var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all .15s;background:var(--surface);font-size:.8125rem;font-weight:600}
+.platform-opt:hover{border-color:var(--primary)}
+.platform-opt.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+
+.gen-btn-wrap{text-align:center;margin-bottom:2rem}
+
+/* Loading spinner */
+.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:.5rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gen-loading{text-align:center;padding:3rem}
+.gen-loading .big-spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
+.gen-loading p{color:var(--text2);font-size:.875rem}
+
+/* Results */
+.result-card{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1.5rem}
+.result-header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--bg2)}
+.result-header h3{font-size:.9375rem;font-weight:700}
+.result-body{padding:1.25rem}
+.result-field{margin-bottom:1rem}
+.result-field label{font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.result-field .rf-value{font-size:.875rem;color:var(--text);background:var(--bg2);padding:.75rem;border-radius:var(--radius);position:relative}
+.rf-value .copy-btn{position:absolute;top:.375rem;right:.375rem;padding:.25rem .5rem;font-size:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;color:var(--text2);font-weight:500}
+.rf-value .copy-btn:hover{color:var(--primary);border-color:var(--primary)}
+
+/* SEO Score */
+.seo-panel{border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-top:1.5rem}
+.seo-panel h3{font-size:.9375rem;font-weight:700;margin-bottom:1rem}
+.seo-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)}
+.seo-row:last-child{border-bottom:none}
+.seo-label{font-size:.8125rem;color:var(--text2)}
+.seo-val{font-size:.8125rem;font-weight:600}
+.seo-good{color:var(--success)}.seo-ok{color:var(--warning)}.seo-bad{color:var(--error)}
+.seo-bar{height:6px;border-radius:3px;background:var(--bg2);margin-top:.5rem;overflow:hidden}
+.seo-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+
+/* Bulk */
+.csv-zone{border:2px dashed var(--border);border-radius:var(--radius-lg);padding:2.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2);max-width:600px;margin:0 auto 1.5rem}
+.csv-zone:hover,.csv-zone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.bulk-progress{max-width:600px;margin:0 auto}
+.progress-bar{height:8px;border-radius:4px;background:var(--bg2);overflow:hidden;margin:.75rem 0}
+.progress-fill{height:100%;border-radius:4px;background:var(--primary);transition:width .3s}
+.bulk-status{font-size:.875rem;color:var(--text2);text-align:center}
+
+/* History */
+.history-list{display:flex;flex-direction:column;gap:.75rem}
+.history-item{display:flex;align-items:center;gap:1rem;padding:1rem;border:1px solid var(--border);border-radius:var(--radius-lg);cursor:pointer;transition:all .15s;background:var(--surface)}
+.history-item:hover{border-color:var(--primary);box-shadow:var(--shadow)}
+.history-item .hi-icon{width:40px;height:40px;border-radius:var(--radius);background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.125rem}
+.history-item .hi-info{flex:1;min-width:0}
+.history-item .hi-title{font-size:.875rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-item .hi-meta{font-size:.75rem;color:var(--text3);display:flex;gap:.75rem;margin-top:.125rem}
+.history-empty{text-align:center;padding:3rem;color:var(--text3)}
+
+/* Settings */
+.settings-card{border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;background:var(--surface);margin-bottom:1.5rem}
+.settings-card h3{font-size:1rem;font-weight:700;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+.voice-examples{display:flex;flex-direction:column;gap:.75rem;margin-bottom:1rem}
+.voice-example{position:relative}
+.voice-example textarea{min-height:60px;font-size:.8125rem}
+.voice-example .remove-ex{position:absolute;top:.375rem;right:.375rem;width:24px;height:24px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;color:var(--text3)}
+.voice-example .remove-ex:hover{color:var(--error);border-color:var(--error)}
+
+/* Billing */
+.current-plan{display:flex;align-items:center;justify-content:space-between;padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);margin-bottom:1.5rem}
+.current-plan .plan-info h3{font-size:1rem;font-weight:700}
+.current-plan .plan-info p{font-size:.8125rem;color:var(--text2)}
+.usage-meter{margin-bottom:1.5rem}
+.usage-meter .meter-label{display:flex;justify-content:space-between;font-size:.8125rem;margin-bottom:.375rem}
+.usage-meter .meter-bar{height:8px;border-radius:4px;background:var(--bg2);overflow:hidden}
+.usage-meter .meter-fill{height:100%;border-radius:4px;background:var(--primary);transition:width .3s}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:1.25rem;font-weight:700;margin-bottom:1rem}
+
+/* Responsive */
+@media(max-width:768px){
+.sidebar{transform:translateX(-100%)}
+.sidebar.open{transform:translateX(0)}
+.app-main{margin-left:0}
+.mobile-menu-btn{display:flex}
+.hero h1{font-size:2.25rem}
+.steps{grid-template-columns:1fr}
+.price-grid{grid-template-columns:1fr}
+.platform-grid{grid-template-columns:repeat(3,1fr)}
+.fields-grid{grid-template-columns:1fr}
+.land-nav-links .nav-link-desk{display:none}
+.stats-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+.hero h1{font-size:1.75rem}
+.hero p{font-size:1rem}
+.platform-grid{grid-template-columns:repeat(2,1fr)}
+.stats-grid{grid-template-columns:1fr}
+.credit-packs{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<!-- Toast container -->
+<div id="toast-wrap"></div>
+
+<!-- ====== LANDING PAGE ====== -->
+<div id="landing">
+<nav class="land-nav">
+  <div class="land-logo">Photo<span>Describer</span></div>
+  <div class="land-nav-links">
+    <a href="#pricing" class="nav-link-desk">Pricing</a>
+    <a href="#features" class="nav-link-desk">Features</a>
+    <button class="btn btn-ghost" onclick="showAuth('login')">Log in</button>
+    <button class="btn btn-primary" onclick="showAuth('signup')">Get Started</button>
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>Turn Product Photos into <span>Selling Descriptions</span></h1>
+  <p>AI-powered descriptions for eBay, Etsy, Amazon, and Shopify. Upload a photo, get a listing. It's that simple.</p>
+  <div class="hero-cta">
+    <button class="btn btn-primary btn-lg" onclick="showAuth('signup')">Start Describing →</button>
+    <button class="btn btn-secondary btn-lg" onclick="showAuth('login')">Log in</button>
+  </div>
+  <div class="hero-badges">
+    <span>📸 Photo to Description</span>
+    <span>🛒 5 Platforms</span>
+    <span>📦 Bulk CSV Upload</span>
+    <span>🎯 SEO Optimised</span>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <h2>Everything You Need to List Faster</h2>
+  <p>Stop spending hours writing product descriptions. Let AI do it in seconds.</p>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon">📸</div>
+      <h3>Photo to Description</h3>
+      <p>Upload a product photo and get a complete listing description. Claude's vision AI identifies your product and writes compelling copy.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🛒</div>
+      <h3>Platform-Specific Formatting</h3>
+      <p>Outputs formatted for eBay, Etsy, Amazon, Shopify, or generic use. Titles, tags, bullet points — all optimised per platform.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📦</div>
+      <h3>Bulk CSV Upload</h3>
+      <p>Upload a CSV with hundreds of products and generate descriptions for all of them in one go. Download the results as a CSV.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎤</div>
+      <h3>Brand Voice Training</h3>
+      <p>Paste examples of your existing descriptions and we'll match your tone and style for every generation.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎯</div>
+      <h3>SEO Scoring</h3>
+      <p>Every description comes with an SEO score — character counts, keyword density, readability, and improvement suggestions.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <h3>Lightning Fast</h3>
+      <p>Get your description in seconds, not minutes. Copy it straight to your listing with one click.</p>
+    </div>
+  </div>
+</section>
+
+<section class="how-it-works">
+  <div class="inner">
+    <h2>How It Works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Upload or Describe</h3>
+        <p>Upload a product photo or type in the details. The more context you provide, the better the result.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Choose Your Platform</h3>
+        <p>Select eBay, Etsy, Amazon, Shopify, or Generic. We format everything to match platform requirements.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Copy &amp; List</h3>
+        <p>Review your AI-generated description, copy it with one click, and paste it straight into your listing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing-section" id="pricing">
+  <h2>Simple, Transparent Pricing</h2>
+  <p>Choose a subscription or buy credits — whatever works for you.</p>
+  <div class="price-grid">
+    <div class="price-card">
+      <h3>Starter</h3>
+      <div class="price">€9.99<span>/mo</span></div>
+      <ul>
+        <li>200 descriptions per month</li>
+        <li>Photo &amp; text generation</li>
+        <li>All 5 platforms</li>
+        <li>Bulk CSV — up to 50 rows</li>
+        <li>Brand voice training</li>
+        <li>SEO scoring</li>
+      </ul>
+      <button class="btn btn-secondary btn-block" onclick="showAuth('signup')">Get Started</button>
+    </div>
+    <div class="price-card popular">
+      <h3>Growth</h3>
+      <div class="price">€24.99<span>/mo</span></div>
+      <ul>
+        <li>1,000 descriptions per month</li>
+        <li>Photo &amp; text generation</li>
+        <li>All 5 platforms</li>
+        <li>Bulk CSV — up to 500 rows</li>
+        <li>Brand voice training</li>
+        <li>SEO scoring</li>
+      </ul>
+      <button class="btn btn-primary btn-block" onclick="showAuth('signup')">Get Started</button>
+    </div>
+    <div class="price-card">
+      <h3>Business</h3>
+      <div class="price">€49.99<span>/mo</span></div>
+      <ul>
+        <li>Unlimited descriptions</li>
+        <li>Photo &amp; text generation</li>
+        <li>All 5 platforms</li>
+        <li>Unlimited bulk CSV rows</li>
+        <li>Brand voice training</li>
+        <li>SEO scoring</li>
+      </ul>
+      <button class="btn btn-secondary btn-block" onclick="showAuth('signup')">Get Started</button>
+    </div>
+  </div>
+  <div class="credits-section">
+    <h3>Or Buy Credits — No Subscription Needed</h3>
+    <p>1 credit = 1 description. Credits never expire.</p>
+    <div class="credit-packs">
+      <div class="credit-pack"><div class="amount">50</div><div class="cprice">€4.99</div><div class="per">€0.10 each</div></div>
+      <div class="credit-pack"><div class="amount">150</div><div class="cprice">€11.99</div><div class="per">€0.08 each</div></div>
+      <div class="credit-pack"><div class="amount">500</div><div class="cprice">€29.99</div><div class="per">€0.06 each</div></div>
+    </div>
+  </div>
+</section>
+
+<footer class="land-footer">
+  <p>© 2026 Photo Describer. Built with Claude AI by Anthropic.</p>
+</footer>
+</div>
+
+<!-- ====== AUTH PAGE ====== -->
+<div id="auth-page" class="hidden">
+<div class="auth-card">
+  <div class="land-logo" style="text-align:center;margin-bottom:1.25rem;font-size:1.375rem">Photo<span>Describer</span></div>
+  <div class="auth-tabs">
+    <div class="auth-tab active" data-tab="login" onclick="switchAuthTab('login')">Log in</div>
+    <div class="auth-tab" data-tab="signup" onclick="switchAuthTab('signup')">Sign up</div>
+  </div>
+  <button class="btn-google" onclick="googleAuth()">
+    <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+    Continue with Google
+  </button>
+  <div class="auth-divider">or</div>
+  <form id="auth-form" onsubmit="handleAuth(event)">
+    <div id="signup-name-field" class="form-group hidden">
+      <label>Full name</label>
+      <input type="text" id="auth-name" placeholder="Your name">
+    </div>
+    <div class="form-group">
+      <label>Email address</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" required>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="At least 6 characters" required minlength="6">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Log in</button>
+  </form>
+  <div class="auth-footer">
+    <a href="#" onclick="showPage('landing');return false">← Back to home</a>
+  </div>
+</div>
+</div>
+
+<!-- ====== APP SHELL ====== -->
+<div id="app" class="hidden">
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">Photo<span>Describer</span></div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" data-view="dashboard" onclick="navigateTo('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-view="generate" onclick="navigateTo('generate')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Generate
+    </div>
+    <div class="nav-item" data-view="bulk" onclick="navigateTo('bulk')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      Bulk Upload
+    </div>
+    <div class="nav-item" data-view="history" onclick="navigateTo('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      History
+    </div>
+    <div class="nav-section">Settings</div>
+    <div class="nav-item" data-view="brand-voice" onclick="navigateTo('brand-voice')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+      Brand Voice
+    </div>
+    <div class="nav-item" data-view="billing" onclick="navigateTo('billing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      Billing
+    </div>
+    <div class="nav-item" data-view="profile" onclick="navigateTo('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="user-avatar">U</div>
+      <div>
+        <div style="font-weight:600" id="user-display-name">User</div>
+        <div style="color:var(--text3);font-size:.75rem;cursor:pointer" onclick="logout()">Sign out</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main area -->
+<div class="app-main">
+<header class="app-header">
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+    <h1 id="header-title">Dashboard</h1>
+  </div>
+  <div class="header-actions">
+    <div class="credit-pill" id="credit-pill">0 credits</div>
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</div>
+  </div>
+</header>
+
+<div class="app-content">
+
+<!-- DASHBOARD VIEW -->
+<div id="view-dashboard" class="view">
+  <h2 class="page-title">Welcome back!</h2>
+  <p class="page-desc">Here's an overview of your account.</p>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Descriptions This Cycle</div><div class="stat-value" id="stat-used">0</div><div class="stat-sub" id="stat-limit">of 0 used</div></div>
+    <div class="stat-card"><div class="stat-label">Credits Remaining</div><div class="stat-value" id="stat-credits">0</div><div class="stat-sub">never expire</div></div>
+    <div class="stat-card"><div class="stat-label">Current Plan</div><div class="stat-value" id="stat-plan">None</div><div class="stat-sub" id="stat-plan-sub">No active subscription</div></div>
+  </div>
+  <h3 style="font-size:1rem;font-weight:700;margin-bottom:.75rem">Quick Actions</h3>
+  <div class="quick-actions">
+    <div class="quick-action" onclick="navigateTo('generate')"><div class="qa-icon">📸</div><div class="qa-label">Photo Description</div></div>
+    <div class="quick-action" onclick="navigateTo('generate');setTimeout(()=>switchGenTab('text'),50)"><div class="qa-icon">✏️</div><div class="qa-label">Text Description</div></div>
+    <div class="quick-action" onclick="navigateTo('bulk')"><div class="qa-icon">📦</div><div class="qa-label">Bulk Upload</div></div>
+    <div class="quick-action" onclick="navigateTo('history')"><div class="qa-icon">📋</div><div class="qa-label">View History</div></div>
+  </div>
+  <h3 style="font-size:1rem;font-weight:700;margin-bottom:.75rem">Recent Generations</h3>
+  <div id="dashboard-recent" class="history-list"><div class="history-empty">No generations yet. Create your first one!</div></div>
+</div>
+
+<!-- GENERATE VIEW -->
+<div id="view-generate" class="view hidden">
+  <h2 class="page-title">Generate Description</h2>
+  <p class="page-desc">Upload a photo or enter product details to generate a platform-ready description.</p>
+
+  <div class="gen-tabs">
+    <button class="gen-tab active" onclick="switchGenTab('photo')">📸 Photo</button>
+    <button class="gen-tab" onclick="switchGenTab('text')">✏️ Text</button>
+  </div>
+
+  <!-- Photo tab -->
+  <div id="gen-photo-tab">
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="uz-icon">📸</div>
+      <h3>Drop your product photo here</h3>
+      <p>or click to browse — JPG, PNG, WebP up to 10MB</p>
+    </div>
+    <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div class="upload-preview hidden" id="upload-preview">
+      <img id="preview-img" src="" alt="Preview">
+      <button class="remove-img" onclick="removeImage()">✕</button>
+    </div>
+    <div class="context-fields">
+      <div class="context-toggle" id="context-toggle" onclick="toggleContext()">+ Add optional context (improves results)</div>
+      <div id="context-fields-inner" class="hidden">
+        <div class="fields-grid">
+          <div class="form-group"><label>Product Name</label><input type="text" id="ctx-name" placeholder="e.g. Vintage Leather Bag"></div>
+          <div class="form-group"><label>Category</label><input type="text" id="ctx-category" placeholder="e.g. Bags & Purses"></div>
+          <div class="form-group"><label>Price</label><input type="text" id="ctx-price" placeholder="e.g. £45.00"></div>
+          <div class="form-group"><label>Target Audience</label><input type="text" id="ctx-audience" placeholder="e.g. Women 25-45"></div>
+          <div class="form-group full"><label>Key Features</label><textarea id="ctx-features" placeholder="e.g. Genuine leather, brass buckle, handmade, vintage 1970s"></textarea></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Text tab -->
+  <div id="gen-text-tab" class="hidden">
+    <div style="max-width:600px;margin:0 auto">
+      <div class="fields-grid">
+        <div class="form-group full"><label>Product Name *</label><input type="text" id="txt-name" placeholder="e.g. Vintage Leather Bag" required></div>
+        <div class="form-group"><label>Category</label><input type="text" id="txt-category" placeholder="e.g. Bags & Purses"></div>
+        <div class="form-group"><label>Price</label><input type="text" id="txt-price" placeholder="e.g. £45.00"></div>
+        <div class="form-group full"><label>Key Features *</label><textarea id="txt-features" placeholder="List the main features, one per line" required></textarea></div>
+        <div class="form-group full"><label>Target Audience</label><input type="text" id="txt-audience" placeholder="e.g. Women 25-45, vintage lovers"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform selector -->
+  <div class="platform-select">
+    <h3>Select Platform</h3>
+    <div class="platform-grid">
+      <div class="platform-opt" data-platform="ebay" onclick="selectPlatform('ebay')">eBay</div>
+      <div class="platform-opt" data-platform="etsy" onclick="selectPlatform('etsy')">Etsy</div>
+      <div class="platform-opt" data-platform="amazon" onclick="selectPlatform('amazon')">Amazon</div>
+      <div class="platform-opt" data-platform="shopify" onclick="selectPlatform('shopify')">Shopify</div>
+      <div class="platform-opt selected" data-platform="generic" onclick="selectPlatform('generic')">Generic</div>
+    </div>
+  </div>
+
+  <div class="gen-btn-wrap">
+    <button class="btn btn-primary btn-lg" id="generate-btn" onclick="handleGenerate()">✨ Generate Description</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="gen-loading" class="gen-loading hidden">
+    <div class="big-spinner"></div>
+    <p>Generating your description...</p>
+  </div>
+
+  <!-- Results -->
+  <div id="gen-results" class="hidden"></div>
+
+  <!-- SEO Panel -->
+  <div id="seo-panel" class="seo-panel hidden"></div>
+</div>
+
+<!-- BULK VIEW -->
+<div id="view-bulk" class="view hidden">
+  <h2 class="page-title">Bulk CSV Upload</h2>
+  <p class="page-desc">Upload a CSV file with product data and generate descriptions for all rows at once.</p>
+  <div class="csv-zone" id="csv-zone" onclick="document.getElementById('csv-input').click()">
+    <div class="uz-icon">📄</div>
+    <h3>Drop your CSV file here</h3>
+    <p>Columns: name, category, features, price (at minimum, "name" is required)</p>
+  </div>
+  <input type="file" id="csv-input" accept=".csv" style="display:none">
+  <div id="csv-info" class="hidden" style="text-align:center;margin-bottom:1rem">
+    <p style="font-weight:600" id="csv-filename"></p>
+    <p style="font-size:.875rem;color:var(--text2)" id="csv-row-count"></p>
+    <button class="btn btn-ghost btn-sm" onclick="clearCsv()" style="margin-top:.5rem">Remove file</button>
+  </div>
+  <div class="platform-select">
+    <h3>Select Platform for All Rows</h3>
+    <div class="platform-grid">
+      <div class="platform-opt" data-bulk-platform="ebay" onclick="selectBulkPlatform('ebay')">eBay</div>
+      <div class="platform-opt" data-bulk-platform="etsy" onclick="selectBulkPlatform('etsy')">Etsy</div>
+      <div class="platform-opt" data-bulk-platform="amazon" onclick="selectBulkPlatform('amazon')">Amazon</div>
+      <div class="platform-opt" data-bulk-platform="shopify" onclick="selectBulkPlatform('shopify')">Shopify</div>
+      <div class="platform-opt selected" data-bulk-platform="generic" onclick="selectBulkPlatform('generic')">Generic</div>
+    </div>
+  </div>
+  <div class="gen-btn-wrap"><button class="btn btn-primary btn-lg" id="bulk-btn" onclick="handleBulk()">🚀 Generate All Descriptions</button></div>
+  <div id="bulk-progress" class="bulk-progress hidden">
+    <div class="progress-bar"><div class="progress-fill" id="bulk-progress-fill"></div></div>
+    <div class="bulk-status" id="bulk-status">Processing...</div>
+  </div>
+  <div id="bulk-results" class="hidden" style="text-align:center;margin-top:1rem">
+    <p style="font-weight:600;color:var(--success)">✓ Bulk generation complete!</p>
+    <p style="font-size:.875rem;color:var(--text2);margin:.5rem 0" id="bulk-summary"></p>
+    <button class="btn btn-primary" onclick="downloadBulkCsv()">⬇ Download Results CSV</button>
+  </div>
+</div>
+
+<!-- HISTORY VIEW -->
+<div id="view-history" class="view hidden">
+  <h2 class="page-title">Generation History</h2>
+  <p class="page-desc">Your past generations. Click to view details.</p>
+  <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+    <button class="btn btn-sm btn-secondary hist-filter active" data-filter="all" onclick="filterHistory('all')">All</button>
+    <button class="btn btn-sm btn-ghost hist-filter" data-filter="photo" onclick="filterHistory('photo')">Photo</button>
+    <button class="btn btn-sm btn-ghost hist-filter" data-filter="text" onclick="filterHistory('text')">Text</button>
+    <button class="btn btn-sm btn-ghost hist-filter" data-filter="csv" onclick="filterHistory('csv')">CSV</button>
+  </div>
+  <div id="history-list" class="history-list"><div class="history-empty">No generations yet.</div></div>
+</div>
+
+<!-- BRAND VOICE VIEW -->
+<div id="view-brand-voice" class="view hidden">
+  <h2 class="page-title">Brand Voice</h2>
+  <p class="page-desc">Train the AI to match your writing style and tone.</p>
+  <div class="settings-card">
+    <h3>Tone Description</h3>
+    <div class="form-group">
+      <label>Describe your brand's tone of voice</label>
+      <textarea id="voice-tone" placeholder="e.g. Friendly, casual, uses British English, avoids jargon, slightly humorous"></textarea>
+    </div>
+  </div>
+  <div class="settings-card">
+    <h3>Example Descriptions</h3>
+    <p style="font-size:.875rem;color:var(--text2);margin-bottom:1rem">Paste 5–10 descriptions you've written before. We'll match this style.</p>
+    <div class="voice-examples" id="voice-examples"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addVoiceExample()">+ Add Example</button>
+  </div>
+  <button class="btn btn-primary" onclick="saveBrandVoice()">Save Brand Voice</button>
+</div>
+
+<!-- BILLING VIEW -->
+<div id="view-billing" class="view hidden">
+  <h2 class="page-title">Billing</h2>
+  <p class="page-desc">Manage your subscription and credits.</p>
+  <div class="current-plan" id="billing-plan">
+    <div class="plan-info"><h3 id="billing-plan-name">No Plan</h3><p id="billing-plan-desc">You have no active subscription.</p></div>
+    <button class="btn btn-secondary btn-sm" onclick="openPortal()">Manage</button>
+  </div>
+  <div class="usage-meter" id="usage-meter">
+    <div class="meter-label"><span>Descriptions used</span><span id="meter-count">0 / 0</span></div>
+    <div class="meter-bar"><div class="meter-fill" id="meter-fill" style="width:0%"></div></div>
+  </div>
+  <h3 style="font-size:1rem;font-weight:700;margin:1.5rem 0 .75rem">Subscription Plans</h3>
+  <div class="price-grid">
+    <div class="price-card"><h3>Starter</h3><div class="price">€9.99<span>/mo</span></div><ul><li>200 descriptions/month</li><li>Bulk CSV — 50 rows</li></ul><button class="btn btn-secondary btn-block" onclick="subscribe('starter')">Choose Starter</button></div>
+    <div class="price-card popular"><h3>Growth</h3><div class="price">€24.99<span>/mo</span></div><ul><li>1,000 descriptions/month</li><li>Bulk CSV — 500 rows</li></ul><button class="btn btn-primary btn-block" onclick="subscribe('growth')">Choose Growth</button></div>
+    <div class="price-card"><h3>Business</h3><div class="price">€49.99<span>/mo</span></div><ul><li>Unlimited descriptions</li><li>Unlimited bulk rows</li></ul><button class="btn btn-secondary btn-block" onclick="subscribe('business')">Choose Business</button></div>
+  </div>
+  <h3 style="font-size:1rem;font-weight:700;margin:1.5rem 0 .75rem">Buy Credits</h3>
+  <div class="credit-packs">
+    <div class="credit-pack" style="cursor:pointer" onclick="buyCredits('50')"><div class="amount">50</div><div class="cprice">€4.99</div><div class="per">€0.10 each</div></div>
+    <div class="credit-pack" style="cursor:pointer" onclick="buyCredits('150')"><div class="amount">150</div><div class="cprice">€11.99</div><div class="per">€0.08 each</div></div>
+    <div class="credit-pack" style="cursor:pointer" onclick="buyCredits('500')"><div class="amount">500</div><div class="cprice">€29.99</div><div class="per">€0.06 each</div></div>
+  </div>
+</div>
+
+<!-- PROFILE VIEW -->
+<div id="view-profile" class="view hidden">
+  <h2 class="page-title">Profile</h2>
+  <p class="page-desc">Manage your account settings.</p>
+  <div class="settings-card">
+    <h3>Account Details</h3>
+    <div class="form-group"><label>Full Name</label><input type="text" id="profile-name"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="profile-email" disabled></div>
+    <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+  </div>
+  <div class="settings-card">
+    <h3>Danger Zone</h3>
+    <button class="btn btn-secondary" style="color:var(--error);border-color:var(--error)" onclick="logout()">Sign Out</button>
+  </div>
+</div>
+
+</div><!-- /app-content -->
+</div><!-- /app-main -->
+</div><!-- /app -->
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+/* ===============================
+   CONFIGURATION — Edit these values
+   =============================== */
+const CONFIG = {
+  SUPABASE_URL: '',       // Your Supabase project URL
+  SUPABASE_ANON_KEY: '',  // Your Supabase anon/public key
+  STRIPE_PK: '',          // Your Stripe publishable key
+  APP_URL: window.location.origin
+};
+
+/* ===============================
+   STATE
+   =============================== */
+let supabase = null;
+let currentUser = null;
+let currentView = 'dashboard';
+let selectedPlatform = 'generic';
+let bulkPlatform = 'generic';
+let uploadedImage = null;       // { file, base64, name }
+let csvData = null;             // { filename, headers, rows }
+let bulkResults = null;
+let userProfile = null;
+let brandVoice = null;
+let historyData = [];
+let historyFilter = 'all';
+
+/* ===============================
+   INIT
+   =============================== */
+async function init() {
+  // Init theme
+  const savedTheme = localStorage.getItem('pd-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  document.querySelector('.theme-toggle').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+  // Init Supabase
+  if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
+    supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      await loadUserData();
+      showPage('app');
+      navigateTo('dashboard');
+    } else {
+      showPage('landing');
+    }
+    // Auth state listener
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        currentUser = session.user;
+        await loadUserData();
+        showPage('app');
+        navigateTo('dashboard');
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        userProfile = null;
+        showPage('landing');
+      }
+    });
+  } else {
+    // Demo mode — no Supabase configured
+    showPage('landing');
+    console.warn('Photo Describer: Supabase not configured. Set CONFIG.SUPABASE_URL and CONFIG.SUPABASE_ANON_KEY.');
+  }
+
+  // Set up drag & drop for photo upload
+  setupUploadZone();
+  setupCsvZone();
+}
+
+/* ===============================
+   PAGE / VIEW MANAGEMENT
+   =============================== */
+function showPage(page) {
+  document.getElementById('landing').classList.toggle('hidden', page !== 'landing');
+  document.getElementById('auth-page').classList.toggle('hidden', page !== 'auth');
+  document.getElementById('app').classList.toggle('hidden', page !== 'app');
+}
+
+function showAuth(tab) {
+  showPage('auth');
+  switchAuthTab(tab || 'login');
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('signup-name-field').classList.toggle('hidden', tab !== 'signup');
+  document.getElementById('auth-submit-btn').textContent = tab === 'signup' ? 'Create account' : 'Log in';
+  document.getElementById('auth-form').dataset.mode = tab;
+}
+
+function navigateTo(view) {
+  currentView = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  const el = document.getElementById('view-' + view);
+  if (el) el.classList.remove('hidden');
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+  // Update header
+  const titles = { dashboard:'Dashboard', generate:'Generate', bulk:'Bulk Upload', history:'History', 'brand-voice':'Brand Voice', billing:'Billing', profile:'Profile' };
+  document.getElementById('header-title').textContent = titles[view] || 'Dashboard';
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  // Load data for view
+  if (view === 'dashboard') loadDashboard();
+  if (view === 'history') loadHistory();
+  if (view === 'brand-voice') loadBrandVoice();
+  if (view === 'billing') loadBilling();
+  if (view === 'profile') loadProfile();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+/* ===============================
+   THEME
+   =============================== */
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('pd-theme', next);
+  document.querySelector('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+/* ===============================
+   TOAST NOTIFICATIONS
+   =============================== */
+function toast(message, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = message;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+/* ===============================
+   AUTH
+   =============================== */
+async function handleAuth(e) {
+  e.preventDefault();
+  const mode = document.getElementById('auth-form').dataset.mode || 'login';
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true;
+  btn.textContent = mode === 'signup' ? 'Creating account...' : 'Logging in...';
+
+  try {
+    if (!supabase) { toast('Supabase not configured', 'error'); return; }
+    if (mode === 'signup') {
+      const name = document.getElementById('auth-name').value;
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+      if (error) throw error;
+      toast('Account created! Check your email to confirm.', 'success');
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast('Welcome back!', 'success');
+    }
+  } catch (err) {
+    toast(err.message || 'Authentication failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = mode === 'signup' ? 'Create account' : 'Log in';
+  }
+}
+
+async function googleAuth() {
+  if (!supabase) { toast('Supabase not configured', 'error'); return; }
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: CONFIG.APP_URL } });
+  if (error) toast(error.message, 'error');
+}
+
+async function logout() {
+  if (supabase) await supabase.auth.signOut();
+  currentUser = null;
+  userProfile = null;
+  showPage('landing');
+  toast('Signed out', 'info');
+}
+
+/* ===============================
+   USER DATA
+   =============================== */
+async function loadUserData() {
+  if (!supabase || !currentUser) return;
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const res = await fetch('/api/user-usage', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      userProfile = await res.json();
+      updateUserUI();
+    }
+  } catch (e) { console.error('Failed to load user data', e); }
+}
+
+function updateUserUI() {
+  if (!userProfile) return;
+  const name = currentUser?.user_metadata?.full_name || currentUser?.email || 'User';
+  document.getElementById('user-display-name').textContent = name;
+  document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+  const credits = userProfile.creditsBalance || 0;
+  document.getElementById('credit-pill').textContent = credits + ' credit' + (credits !== 1 ? 's' : '');
+}
+
+async function getToken() {
+  if (!supabase) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token;
+}
+
+/* ===============================
+   DASHBOARD
+   =============================== */
+async function loadDashboard() {
+  if (!userProfile) await loadUserData();
+  if (!userProfile) return;
+  const p = userProfile;
+  document.getElementById('stat-used').textContent = p.descriptionsUsed || 0;
+  const limit = p.descriptionsLimit === -1 ? '∞' : (p.descriptionsLimit || 0);
+  document.getElementById('stat-limit').textContent = 'of ' + limit + ' used this cycle';
+  document.getElementById('stat-credits').textContent = p.creditsBalance || 0;
+  const planName = (p.plan || 'none').charAt(0).toUpperCase() + (p.plan || 'none').slice(1);
+  document.getElementById('stat-plan').textContent = planName === 'None' ? 'No Plan' : planName;
+  document.getElementById('stat-plan-sub').textContent = p.subscriptionStatus === 'active' ? 'Active subscription' : 'No active subscription';
+  // Load recent generations
+  try {
+    const token = await getToken();
+    if (!token) return;
+    const res = await fetch('/api/generations?limit=5', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      const data = await res.json();
+      renderRecentGenerations(data.results || []);
+    }
+  } catch (e) { console.error(e); }
+}
+
+function renderRecentGenerations(items) {
+  const el = document.getElementById('dashboard-recent');
+  if (!items.length) { el.innerHTML = '<div class="history-empty">No generations yet. Create your first one!</div>'; return; }
+  el.innerHTML = items.map(item => renderHistoryItem(item)).join('');
+}
+
+/* ===============================
+   GENERATE — PHOTO UPLOAD
+   =============================== */
+function setupUploadZone() {
+  const zone = document.getElementById('upload-zone');
+  const input = document.getElementById('file-input');
+  if (!zone || !input) return;
+  ['dragenter','dragover'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.remove('dragover'); }));
+  zone.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) handleImageFile(ev.dataTransfer.files[0]); });
+  input.addEventListener('change', ev => { if (ev.target.files[0]) handleImageFile(ev.target.files[0]); });
+}
+
+function handleImageFile(file) {
+  if (file.size > 10 * 1024 * 1024) { toast('File too large. Maximum 10MB.', 'error'); return; }
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) { toast('Invalid file type. Use JPG, PNG, or WebP.', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    uploadedImage = { file, base64: e.target.result, name: file.name };
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('upload-preview').classList.remove('hidden');
+    document.getElementById('upload-zone').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage() {
+  uploadedImage = null;
+  document.getElementById('upload-preview').classList.add('hidden');
+  document.getElementById('upload-zone').classList.remove('hidden');
+  document.getElementById('file-input').value = '';
+}
+
+function switchGenTab(tab) {
+  document.querySelectorAll('.gen-tab').forEach((t,i) => t.classList.toggle('active', (tab==='photo'?0:1)===i));
+  document.getElementById('gen-photo-tab').classList.toggle('hidden', tab !== 'photo');
+  document.getElementById('gen-text-tab').classList.toggle('hidden', tab !== 'text');
+}
+
+function toggleContext() {
+  const inner = document.getElementById('context-fields-inner');
+  const toggle = document.getElementById('context-toggle');
+  const open = inner.classList.toggle('hidden');
+  toggle.textContent = open ? '+ Add optional context (improves results)' : '− Hide context fields';
+}
+
+function selectPlatform(platform) {
+  selectedPlatform = platform;
+  document.querySelectorAll('.platform-opt[data-platform]').forEach(p => p.classList.toggle('selected', p.dataset.platform === platform));
+}
+
+/* ===============================
+   GENERATE — HANDLER
+   =============================== */
+async function handleGenerate() {
+  const isPhoto = !document.getElementById('gen-photo-tab').classList.contains('hidden');
+  const btn = document.getElementById('generate-btn');
+  const loading = document.getElementById('gen-loading');
+  const results = document.getElementById('gen-results');
+  const seoPanel = document.getElementById('seo-panel');
+
+  // Validation
+  if (isPhoto && !uploadedImage) { toast('Please upload a product photo first.', 'error'); return; }
+  if (!isPhoto) {
+    if (!document.getElementById('txt-name').value.trim()) { toast('Please enter a product name.', 'error'); return; }
+  }
+
+  btn.disabled = true;
+  loading.classList.remove('hidden');
+  results.classList.add('hidden');
+  seoPanel.classList.add('hidden');
+
+  try {
+    const token = await getToken();
+    if (!token) { toast('Please sign in first.', 'error'); return; }
+
+    let response;
+    if (isPhoto) {
+      const body = {
+        image: uploadedImage.base64,
+        platform: selectedPlatform,
+        productName: document.getElementById('ctx-name').value,
+        category: document.getElementById('ctx-category').value,
+        features: document.getElementById('ctx-features').value,
+        price: document.getElementById('ctx-price').value,
+        targetAudience: document.getElementById('ctx-audience').value,
+      };
+      if (brandVoice) body.brandVoice = brandVoice;
+      response = await fetch('/api/generate-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+    } else {
+      const body = {
+        productName: document.getElementById('txt-name').value,
+        category: document.getElementById('txt-category').value,
+        features: document.getElementById('txt-features').value,
+        price: document.getElementById('txt-price').value,
+        targetAudience: document.getElementById('txt-audience').value,
+        platform: selectedPlatform,
+      };
+      if (brandVoice) body.brandVoice = brandVoice;
+      response = await fetch('/api/generate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+    }
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Generation failed. Please try again.');
+    }
+
+    const data = await response.json();
+    renderResults(data.output || data, selectedPlatform);
+    renderSeoPanel(data.output || data, selectedPlatform);
+    await loadUserData(); // Refresh credits
+    toast('Description generated!', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    loading.classList.add('hidden');
+  }
+}
+
+/* ===============================
+   RESULTS RENDERING
+   =============================== */
+function renderResults(output, platform) {
+  const container = document.getElementById('gen-results');
+  container.classList.remove('hidden');
+  let html = '<div class="result-card"><div class="result-header"><h3>' + platform.charAt(0).toUpperCase() + platform.slice(1) + ' Listing</h3>';
+  html += '<button class="btn btn-sm btn-secondary" onclick="copyAll()">Copy All</button></div><div class="result-body">';
+
+  const fields = getPlatformFields(output, platform);
+  fields.forEach(f => {
+    const val = typeof f.value === 'object' ? JSON.stringify(f.value, null, 2) : f.value;
+    if (!val) return;
+    const id = 'rf-' + f.key;
+    html += '<div class="result-field"><label>' + f.label + '</label>';
+    html += '<div class="rf-value" id="' + id + '">' + escapeHtml(String(val));
+    html += '<button class="copy-btn" onclick="copyField(\'' + id + '\')">Copy</button>';
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function getPlatformFields(output, platform) {
+  switch (platform) {
+    case 'ebay': return [
+      { key:'title', label:'Title (max 80 chars)', value: output.title },
+      { key:'subtitle', label:'Subtitle (max 55 chars)', value: output.subtitle },
+      { key:'specs', label:'Item Specifics', value: output.itemSpecifics },
+      { key:'desc', label:'Description', value: output.description },
+      { key:'cond', label:'Condition Description', value: output.conditionDescription },
+    ];
+    case 'etsy': return [
+      { key:'title', label:'Title (max 140 chars)', value: output.title },
+      { key:'desc', label:'Description', value: output.description },
+      { key:'tags', label:'Tags (13)', value: Array.isArray(output.tags) ? output.tags.join(', ') : output.tags },
+      { key:'section', label:'Section Suggestion', value: output.sectionSuggestion },
+    ];
+    case 'amazon': return [
+      { key:'title', label:'Title (max 200 chars)', value: output.title },
+      { key:'bullets', label:'Bullet Points', value: Array.isArray(output.bulletPoints) ? output.bulletPoints.map(b=>'• '+b).join('\n') : output.bulletPoints },
+      { key:'desc', label:'Description', value: output.description },
+      { key:'search', label:'Search Terms', value: output.searchTerms },
+    ];
+    case 'shopify': return [
+      { key:'seo-title', label:'SEO Title (max 70 chars)', value: output.seoTitle },
+      { key:'meta', label:'Meta Description (max 160 chars)', value: output.metaDescription },
+      { key:'desc', label:'Product Description', value: output.description },
+      { key:'tags', label:'Tags', value: Array.isArray(output.tags) ? output.tags.join(', ') : output.tags },
+    ];
+    default: return [
+      { key:'desc', label:'Description', value: output.description },
+    ];
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+
+function copyField(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = el.innerText.replace(/Copy$/, '').trim();
+  navigator.clipboard.writeText(text).then(() => toast('Copied!', 'success'));
+}
+
+function copyAll() {
+  const container = document.getElementById('gen-results');
+  const fields = container.querySelectorAll('.rf-value');
+  let text = '';
+  fields.forEach(f => { text += f.innerText.replace(/Copy$/, '').trim() + '\n\n'; });
+  navigator.clipboard.writeText(text.trim()).then(() => toast('All fields copied!', 'success'));
+}
+
+/* ===============================
+   SEO SCORING
+   =============================== */
+function renderSeoPanel(output, platform) {
+  const panel = document.getElementById('seo-panel');
+  panel.classList.remove('hidden');
+
+  const scores = calculateSeoScores(output, platform);
+  let html = '<h3>SEO Score</h3>';
+  const overall = Math.round(scores.reduce((a,s) => a + s.score, 0) / scores.length);
+  const overallClass = overall >= 70 ? 'seo-good' : overall >= 40 ? 'seo-ok' : 'seo-bad';
+  html += '<div style="text-align:center;margin-bottom:1rem"><span style="font-size:2rem;font-weight:800" class="' + overallClass + '">' + overall + '/100</span></div>';
+  html += '<div class="seo-bar"><div class="seo-bar-fill" style="width:' + overall + '%;background:' + (overall>=70?'var(--success)':overall>=40?'var(--warning)':'var(--error)') + '"></div></div>';
+
+  scores.forEach(s => {
+    const cls = s.score >= 70 ? 'seo-good' : s.score >= 40 ? 'seo-ok' : 'seo-bad';
+    html += '<div class="seo-row"><span class="seo-label">' + s.label + '</span><span class="seo-val ' + cls + '">' + s.display + '</span></div>';
+  });
+
+  if (scores.some(s => s.suggestion)) {
+    html += '<div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)"><strong style="font-size:.8125rem">Suggestions:</strong><ul style="margin-top:.375rem;padding-left:1.25rem">';
+    scores.filter(s => s.suggestion).forEach(s => { html += '<li style="font-size:.8125rem;color:var(--text2);margin-bottom:.25rem">' + s.suggestion + '</li>'; });
+    html += '</ul></div>';
+  }
+  panel.innerHTML = html;
+}
+
+function calculateSeoScores(output, platform) {
+  const scores = [];
+  const desc = output.description || '';
+  const title = output.title || output.seoTitle || '';
+
+  // Word count
+  const wordCount = desc.split(/\s+/).filter(Boolean).length;
+  const idealMin = 50, idealMax = 300;
+  const wcScore = wordCount < idealMin ? Math.round(wordCount/idealMin*70) : wordCount > idealMax ? Math.max(40, 100 - (wordCount-idealMax)/5) : 90;
+  scores.push({ label: 'Word Count', display: wordCount + ' words', score: wcScore, suggestion: wordCount < idealMin ? 'Add more detail to your description for better SEO.' : null });
+
+  // Title length
+  if (title) {
+    const maxLen = {ebay:80,etsy:140,amazon:200,shopify:70,generic:100}[platform]||100;
+    const tLen = title.length;
+    const tScore = tLen > maxLen ? Math.max(30, 100 - (tLen-maxLen)*2) : tLen < maxLen*0.5 ? Math.round(tLen/(maxLen*0.5)*70) : 95;
+    scores.push({ label: 'Title Length', display: tLen + '/' + maxLen + ' chars', score: tScore, suggestion: tLen > maxLen ? 'Title exceeds the platform limit. Shorten it.' : tLen < maxLen*0.3 ? 'Title is very short. Add more keywords.' : null });
+  }
+
+  // Readability (simple Flesch-Kincaid approximation)
+  const sentences = desc.split(/[.!?]+/).filter(Boolean).length || 1;
+  const syllables = desc.split(/\s+/).reduce((a,w) => a + countSyllables(w), 0);
+  const fk = 206.835 - 1.015*(wordCount/sentences) - 84.6*(syllables/Math.max(wordCount,1));
+  const readScore = fk >= 60 ? 90 : fk >= 30 ? 60 : 30;
+  scores.push({ label: 'Readability', display: fk >= 60 ? 'Easy' : fk >= 30 ? 'Moderate' : 'Difficult', score: readScore, suggestion: fk < 30 ? 'Use shorter sentences and simpler words.' : null });
+
+  // Keyword density (check if title words appear in description)
+  if (title) {
+    const titleWords = title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const descLower = desc.toLowerCase();
+    const found = titleWords.filter(w => descLower.includes(w)).length;
+    const kdScore = titleWords.length ? Math.round(found/titleWords.length*100) : 50;
+    scores.push({ label: 'Keyword Coverage', display: found + '/' + titleWords.length + ' keywords', score: kdScore, suggestion: kdScore < 60 ? 'Include more title keywords in your description.' : null });
+  }
+
+  // Platform-specific tags
+  if (platform === 'etsy' && output.tags) {
+    const tags = Array.isArray(output.tags) ? output.tags : String(output.tags).split(',');
+    const tagScore = tags.length >= 13 ? 100 : Math.round(tags.length/13*100);
+    scores.push({ label: 'Etsy Tags', display: tags.length + '/13', score: tagScore, suggestion: tags.length < 13 ? 'Add more tags to maximise discoverability.' : null });
+  }
+
+  return scores;
+}
+
+function countSyllables(word) {
+  word = word.toLowerCase().replace(/[^a-z]/g,'');
+  if (word.length <= 3) return 1;
+  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'');
+  word = word.replace(/^y/,'');
+  const m = word.match(/[aeiouy]{1,2}/g);
+  return m ? m.length : 1;
+}
+
+/* ===============================
+   BULK CSV
+   =============================== */
+function setupCsvZone() {
+  const zone = document.getElementById('csv-zone');
+  const input = document.getElementById('csv-input');
+  if (!zone || !input) return;
+  ['dragenter','dragover'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.remove('dragover'); }));
+  zone.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) handleCsvFile(ev.dataTransfer.files[0]); });
+  input.addEventListener('change', ev => { if (ev.target.files[0]) handleCsvFile(ev.target.files[0]); });
+}
+
+function handleCsvFile(file) {
+  if (!file.name.endsWith('.csv')) { toast('Please upload a CSV file.', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) { toast('CSV must have a header row and at least one data row.', 'error'); return; }
+    const headers = parseCSVLine(lines[0]);
+    const rows = lines.slice(1).map(l => {
+      const vals = parseCSVLine(l);
+      const obj = {};
+      headers.forEach((h, i) => obj[h.toLowerCase().trim()] = vals[i] || '');
+      return obj;
+    });
+    csvData = { filename: file.name, headers, rows };
+    document.getElementById('csv-zone').classList.add('hidden');
+    document.getElementById('csv-info').classList.remove('hidden');
+    document.getElementById('csv-filename').textContent = file.name;
+    document.getElementById('csv-row-count').textContent = rows.length + ' rows found';
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function clearCsv() {
+  csvData = null;
+  document.getElementById('csv-zone').classList.remove('hidden');
+  document.getElementById('csv-info').classList.add('hidden');
+  document.getElementById('csv-input').value = '';
+  document.getElementById('bulk-progress').classList.add('hidden');
+  document.getElementById('bulk-results').classList.add('hidden');
+}
+
+function selectBulkPlatform(platform) {
+  bulkPlatform = platform;
+  document.querySelectorAll('.platform-opt[data-bulk-platform]').forEach(p => p.classList.toggle('selected', p.dataset.bulkPlatform === platform));
+}
+
+async function handleBulk() {
+  if (!csvData) { toast('Please upload a CSV file first.', 'error'); return; }
+  const btn = document.getElementById('bulk-btn');
+  const progress = document.getElementById('bulk-progress');
+  const results = document.getElementById('bulk-results');
+  btn.disabled = true;
+  progress.classList.remove('hidden');
+  results.classList.add('hidden');
+
+  try {
+    const token = await getToken();
+    if (!token) { toast('Please sign in.', 'error'); return; }
+
+    const res = await fetch('/api/generate-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ rows: csvData.rows, platform: bulkPlatform })
+    });
+
+    if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'Bulk generation failed.'); }
+
+    const data = await res.json();
+    bulkResults = data;
+    document.getElementById('bulk-progress-fill').style.width = '100%';
+    document.getElementById('bulk-status').textContent = 'Complete!';
+    results.classList.remove('hidden');
+    document.getElementById('bulk-summary').textContent =
+      data.summary.succeeded + ' succeeded, ' + data.summary.failed + ' failed out of ' + data.summary.total + ' rows.';
+    await loadUserData();
+    toast('Bulk generation complete!', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function downloadBulkCsv() {
+  if (!bulkResults || !bulkResults.results) return;
+  const results = bulkResults.results;
+  // Build CSV
+  const firstOutput = results.find(r => r.success)?.output || {};
+  const outputKeys = Object.keys(firstOutput);
+  const inputKeys = csvData ? csvData.headers.map(h => h.toLowerCase().trim()) : ['name'];
+  const allHeaders = [...inputKeys, ...outputKeys.map(k => 'generated_' + k)];
+  let csv = allHeaders.join(',') + '\n';
+  results.forEach(r => {
+    const row = allHeaders.map(h => {
+      let val = '';
+      if (h.startsWith('generated_')) {
+        const key = h.replace('generated_', '');
+        val = r.output ? (typeof r.output[key] === 'object' ? JSON.stringify(r.output[key]) : String(r.output[key] || '')) : '';
+      } else {
+        val = r.row ? String(r.row[h] || '') : '';
+      }
+      return '"' + val.replace(/"/g, '""') + '"';
+    });
+    csv += row.join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'photo-describer-bulk-results.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ===============================
+   HISTORY
+   =============================== */
+async function loadHistory() {
+  try {
+    const token = await getToken();
+    if (!token) return;
+    const filter = historyFilter !== 'all' ? '&input_type=' + historyFilter : '';
+    const res = await fetch('/api/generations?limit=50' + filter, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      const data = await res.json();
+      historyData = data.results || [];
+      renderHistory();
+    }
+  } catch (e) { console.error(e); }
+}
+
+function filterHistory(f) {
+  historyFilter = f;
+  document.querySelectorAll('.hist-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  document.querySelectorAll('.hist-filter').forEach(b => {
+    b.className = 'btn btn-sm hist-filter' + (b.dataset.filter === f ? ' btn-secondary active' : ' btn-ghost');
+  });
+  loadHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!historyData.length) { el.innerHTML = '<div class="history-empty">No generations found.</div>'; return; }
+  el.innerHTML = historyData.map(item => renderHistoryItem(item)).join('');
+}
+
+function renderHistoryItem(item) {
+  const icons = { photo: '📸', text: '✏️', csv: '📦' };
+  const icon = icons[item.input_type] || '📄';
+  const title = item.input_data?.productName || item.input_data?.name || 'Untitled';
+  const date = new Date(item.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  const platform = (item.platform || '').charAt(0).toUpperCase() + (item.platform || '').slice(1);
+  return '<div class="history-item" onclick="showGeneration(\'' + item.id + '\')">' +
+    '<div class="hi-icon">' + icon + '</div>' +
+    '<div class="hi-info"><div class="hi-title">' + escapeHtml(title) + '</div>' +
+    '<div class="hi-meta"><span>' + platform + '</span><span>' + date + '</span><span>' + item.input_type + '</span></div></div>' +
+    '<span class="badge">' + platform + '</span></div>';
+}
+
+function showGeneration(id) {
+  const item = historyData.find(h => h.id === id);
+  if (!item) return;
+  // Show in modal
+  const modal = document.getElementById('modal-content');
+  let html = '<h2>' + escapeHtml(item.input_data?.productName || item.input_data?.name || 'Generation Detail') + '</h2>';
+  html += '<p style="font-size:.8125rem;color:var(--text3);margin-bottom:1rem">' + item.platform + ' • ' + item.input_type + ' • ' + new Date(item.created_at).toLocaleString('en-GB') + '</p>';
+  if (item.output) {
+    const fields = getPlatformFields(item.output, item.platform);
+    fields.forEach(f => {
+      if (!f.value) return;
+      html += '<div class="result-field"><label>' + f.label + '</label>';
+      html += '<div class="rf-value">' + escapeHtml(String(typeof f.value === 'object' ? JSON.stringify(f.value,null,2) : f.value)) + '</div></div>';
+    });
+  }
+  html += '<button class="btn btn-secondary" style="margin-top:1rem" onclick="closeModal()">Close</button>';
+  modal.innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+/* ===============================
+   BRAND VOICE
+   =============================== */
+async function loadBrandVoice() {
+  try {
+    const token = await getToken();
+    if (!token) return;
+    const res = await fetch('/api/brand-voice', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      const data = await res.json();
+      brandVoice = data.brandVoice;
+      if (brandVoice) {
+        document.getElementById('voice-tone').value = brandVoice.tone_description || brandVoice.toneDescription || '';
+        const examples = brandVoice.example_descriptions || brandVoice.exampleDescriptions || [];
+        renderVoiceExamples(examples);
+      } else {
+        renderVoiceExamples(['']);
+      }
+    }
+  } catch (e) { console.error(e); renderVoiceExamples(['']); }
+}
+
+function renderVoiceExamples(examples) {
+  const container = document.getElementById('voice-examples');
+  container.innerHTML = examples.map((ex, i) =>
+    '<div class="voice-example"><textarea placeholder="Paste an example description...">' + escapeHtml(ex) + '</textarea>' +
+    '<button class="remove-ex" onclick="removeVoiceExample(' + i + ')">✕</button></div>'
+  ).join('');
+}
+
+function addVoiceExample() {
+  const container = document.getElementById('voice-examples');
+  const i = container.children.length;
+  const div = document.createElement('div');
+  div.className = 'voice-example';
+  div.innerHTML = '<textarea placeholder="Paste an example description..."></textarea><button class="remove-ex" onclick="removeVoiceExample(' + i + ')">✕</button>';
+  container.appendChild(div);
+}
+
+function removeVoiceExample(i) {
+  const container = document.getElementById('voice-examples');
+  if (container.children.length <= 1) { toast('Keep at least one example slot.', 'info'); return; }
+  container.children[i]?.remove();
+}
+
+async function saveBrandVoice() {
+  const tone = document.getElementById('voice-tone').value;
+  const examples = [...document.querySelectorAll('#voice-examples textarea')].map(t => t.value).filter(Boolean);
+  try {
+    const token = await getToken();
+    if (!token) { toast('Please sign in.', 'error'); return; }
+    const res = await fetch('/api/brand-voice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ toneDescription: tone, exampleDescriptions: examples })
+    });
+    if (res.ok) {
+      brandVoice = { toneDescription: tone, exampleDescriptions: examples };
+      toast('Brand voice saved!', 'success');
+    } else { throw new Error('Failed to save'); }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ===============================
+   BILLING
+   =============================== */
+async function loadBilling() {
+  if (!userProfile) await loadUserData();
+  if (!userProfile) return;
+  const p = userProfile;
+  const planNames = { none:'No Plan', starter:'Starter', growth:'Growth', business:'Business' };
+  document.getElementById('billing-plan-name').textContent = planNames[p.plan] || 'No Plan';
+  document.getElementById('billing-plan-desc').textContent = p.subscriptionStatus === 'active' ? 'Active subscription' : 'No active subscription';
+  const used = p.descriptionsUsed || 0;
+  const limit = p.descriptionsLimit === -1 ? '∞' : (p.descriptionsLimit || 0);
+  document.getElementById('meter-count').textContent = used + ' / ' + limit;
+  const pct = limit === '∞' ? 5 : (limit > 0 ? Math.min(100, Math.round(used/limit*100)) : 0);
+  document.getElementById('meter-fill').style.width = pct + '%';
+}
+
+async function subscribe(plan) {
+  try {
+    const token = await getToken();
+    if (!token) { toast('Please sign in.', 'error'); return; }
+    const res = await fetch('/api/stripe-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ priceType: 'subscription', planId: plan })
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else toast(data.error || 'Failed to create checkout session.', 'error');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function buyCredits(pack) {
+  try {
+    const token = await getToken();
+    if (!token) { toast('Please sign in.', 'error'); return; }
+    const res = await fetch('/api/stripe-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ priceType: 'credits', creditPack: pack })
+    });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else toast(data.error || 'Failed to create checkout session.', 'error');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function openPortal() {
+  try {
+    const token = await getToken();
+    if (!token) { toast('Please sign in.', 'error'); return; }
+    const res = await fetch('/api/stripe-portal', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+    else toast(data.error || 'No billing portal available.', 'error');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ===============================
+   PROFILE
+   =============================== */
+async function loadProfile() {
+  if (!currentUser) return;
+  document.getElementById('profile-email').value = currentUser.email || '';
+  document.getElementById('profile-name').value = currentUser.user_metadata?.full_name || '';
+}
+
+async function saveProfile() {
+  const name = document.getElementById('profile-name').value;
+  try {
+    const token = await getToken();
+    const res = await fetch('/api/user-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ full_name: name })
+    });
+    if (res.ok) {
+      toast('Profile updated!', 'success');
+      // Update Supabase user metadata too
+      if (supabase) await supabase.auth.updateUser({ data: { full_name: name } });
+    } else throw new Error('Failed to save');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ===============================
+   MODAL
+   =============================== */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ===============================
+   INIT
+   =============================== */
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
