@@ -771,7 +771,7 @@ const CONFIG = {
 /* ===============================
    STATE
    =============================== */
-let supabase = null;
+let sb = null; // Supabase client (renamed to avoid collision with CDN global)
 let currentUser = null;
 let currentView = 'dashboard';
 let selectedPlatform = 'generic';
@@ -795,8 +795,8 @@ async function init() {
 
   // Init Supabase
   if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
-    supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-    const { data: { session } } = await supabase.auth.getSession();
+    sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    const { data: { session } } = await sb.auth.getSession();
     if (session) {
       currentUser = session.user;
       await loadUserData();
@@ -806,7 +806,7 @@ async function init() {
       showPage('landing');
     }
     // Auth state listener
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         currentUser = session.user;
         await loadUserData();
@@ -910,14 +910,14 @@ async function handleAuth(e) {
   btn.textContent = mode === 'signup' ? 'Creating account...' : 'Logging in...';
 
   try {
-    if (!supabase) { toast('Supabase not configured', 'error'); return; }
+    if (!sb) { toast('Supabase not configured', 'error'); return; }
     if (mode === 'signup') {
       const name = document.getElementById('auth-name').value;
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+      const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name } } });
       if (error) throw error;
       toast('Account created! Check your email to confirm.', 'success');
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast('Welcome back!', 'success');
     }
@@ -930,13 +930,13 @@ async function handleAuth(e) {
 }
 
 async function googleAuth() {
-  if (!supabase) { toast('Supabase not configured', 'error'); return; }
-  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: CONFIG.APP_URL } });
+  if (!sb) { toast('Supabase not configured', 'error'); return; }
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: CONFIG.APP_URL } });
   if (error) toast(error.message, 'error');
 }
 
 async function logout() {
-  if (supabase) await supabase.auth.signOut();
+  if (sb) await sb.auth.signOut();
   currentUser = null;
   userProfile = null;
   showPage('landing');
@@ -947,9 +947,9 @@ async function logout() {
    USER DATA
    =============================== */
 async function loadUserData() {
-  if (!supabase || !currentUser) return;
+  if (!sb || !currentUser) return;
   try {
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const token = (await sb.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/user-usage', { headers: { 'Authorization': 'Bearer ' + token } });
     if (res.ok) {
       userProfile = await res.json();
@@ -968,8 +968,8 @@ function updateUserUI() {
 }
 
 async function getToken() {
-  if (!supabase) return null;
-  const { data: { session } } = await supabase.auth.getSession();
+  if (!sb) return null;
+  const { data: { session } } = await sb.auth.getSession();
   return session?.access_token;
 }
 
@@ -1632,7 +1632,7 @@ async function saveProfile() {
     if (res.ok) {
       toast('Profile updated!', 'success');
       // Update Supabase user metadata too
-      if (supabase) await supabase.auth.updateUser({ data: { full_name: name } });
+      if (sb) await sb.auth.updateUser({ data: { full_name: name } });
     } else throw new Error('Failed to save');
   } catch (e) { toast(e.message, 'error'); }
 }
