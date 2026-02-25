@@ -95,29 +95,38 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
 
-  const { full_name } = body;
+  const updateFields = {};
 
-  if (full_name === undefined) {
-    return res.status(400).json({ error: 'full_name is required' });
+  // Handle full_name update
+  if (body.full_name !== undefined) {
+    if (typeof body.full_name !== 'string') {
+      return res.status(400).json({ error: 'full_name must be a string' });
+    }
+    const trimmedName = body.full_name.trim();
+    if (trimmedName.length === 0) {
+      return res.status(400).json({ error: 'full_name cannot be empty' });
+    }
+    if (trimmedName.length > 200) {
+      return res.status(400).json({ error: 'full_name must not exceed 200 characters' });
+    }
+    updateFields.full_name = trimmedName;
   }
 
-  if (typeof full_name !== 'string') {
-    return res.status(400).json({ error: 'full_name must be a string' });
+  // Handle Shopify disconnect (set to null)
+  if ('shopify_access_token' in body && body.shopify_access_token === null) {
+    updateFields.shopify_access_token = null;
+    updateFields.shopify_shop = null;
   }
 
-  const trimmedName = full_name.trim();
-
-  if (trimmedName.length === 0) {
-    return res.status(400).json({ error: 'full_name cannot be empty' });
+  if (Object.keys(updateFields).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
   }
 
-  if (trimmedName.length > 200) {
-    return res.status(400).json({ error: 'full_name must not exceed 200 characters' });
-  }
+  updateFields.updated_at = new Date().toISOString();
 
   const { data: updatedProfile, error: updateError } = await supabase
     .from('profiles')
-    .update({ full_name: trimmedName, updated_at: new Date().toISOString() })
+    .update(updateFields)
     .eq('id', user.id)
     .select()
     .single();

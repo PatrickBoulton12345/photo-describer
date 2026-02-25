@@ -388,7 +388,7 @@ label{display:block;font-size:.8125rem;font-weight:600;color:var(--text2);margin
   <div class="price-grid">
     <div class="price-card">
       <h3>Starter</h3>
-      <div class="price">€9.99<span>/mo</span></div>
+      <div class="price">€4.99<span>/mo</span></div>
       <ul>
         <li>200 descriptions per month</li>
         <li>Photo &amp; text generation</li>
@@ -705,7 +705,7 @@ label{display:block;font-size:.8125rem;font-weight:600;color:var(--text2);margin
   </div>
   <h3 style="font-size:1rem;font-weight:700;margin:1.5rem 0 .75rem">Subscription Plans</h3>
   <div class="price-grid">
-    <div class="price-card"><h3>Starter</h3><div class="price">€9.99<span>/mo</span></div><ul><li>200 descriptions/month</li><li>Bulk CSV — 50 rows</li></ul><button class="btn btn-secondary btn-block" onclick="subscribe('starter')">Choose Starter</button></div>
+    <div class="price-card"><h3>Starter</h3><div class="price">€4.99<span>/mo</span></div><ul><li>200 descriptions/month</li><li>Bulk CSV — 50 rows</li></ul><button class="btn btn-secondary btn-block" onclick="subscribe('starter')">Choose Starter</button></div>
     <div class="price-card popular"><h3>Growth</h3><div class="price">€24.99<span>/mo</span></div><ul><li>1,000 descriptions/month</li><li>Bulk CSV — 500 rows</li></ul><button class="btn btn-primary btn-block" onclick="subscribe('growth')">Choose Growth</button></div>
     <div class="price-card"><h3>Business</h3><div class="price">€49.99<span>/mo</span></div><ul><li>Unlimited descriptions</li><li>Unlimited bulk rows</li></ul><button class="btn btn-secondary btn-block" onclick="subscribe('business')">Choose Business</button></div>
   </div>
@@ -726,6 +726,23 @@ label{display:block;font-size:.8125rem;font-weight:600;color:var(--text2);margin
     <div class="form-group"><label>Full Name</label><input type="text" id="profile-name"></div>
     <div class="form-group"><label>Email</label><input type="email" id="profile-email" disabled></div>
     <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+  </div>
+  <div class="settings-card">
+    <h3>Shopify Integration</h3>
+    <p style="color:var(--text2);font-size:.875rem;margin-bottom:1rem">Connect your Shopify store to publish product listings directly from PhotoLister.</p>
+    <div id="shopify-status">
+      <div id="shopify-disconnected">
+        <div class="form-group"><label>Your Shopify Store Domain</label><input type="text" id="shopify-domain" placeholder="yourstore.myshopify.com"></div>
+        <button class="btn btn-primary" onclick="connectShopify()">Connect Shopify</button>
+      </div>
+      <div id="shopify-connected-ui" class="hidden">
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--bg2);border-radius:var(--radius);margin-bottom:1rem">
+          <span style="color:var(--success);font-size:1.25rem">&#10003;</span>
+          <div><strong>Connected</strong><br><span style="color:var(--text2);font-size:.875rem" id="shopify-shop-name"></span></div>
+        </div>
+        <button class="btn btn-secondary" style="color:var(--error);border-color:var(--error)" onclick="disconnectShopify()">Disconnect Shopify</button>
+      </div>
+    </div>
   </div>
   <div class="settings-card">
     <h3>Danger Zone</h3>
@@ -768,6 +785,8 @@ let userProfile = null;
 let brandVoice = null;
 let historyData = [];
 let historyFilter = 'all';
+let lastGeneratedOutput = null;  // Stores last AI output for Shopify publish
+let shopifyConnected = false;
 
 /* ===============================
    INIT
@@ -798,7 +817,14 @@ async function init() {
         currentUser = session.user;
         await loadUserData();
         showPage('app');
-        navigateTo('dashboard');
+        // Handle Shopify OAuth callback redirect
+        if (window.location.hash === '#shopify-connected') {
+          window.location.hash = '';
+          navigateTo('profile');
+          toast('Shopify store connected!', 'success');
+        } else {
+          navigateTo('dashboard');
+        }
       } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         userProfile = null;
@@ -1118,10 +1144,13 @@ async function handleGenerate() {
    RESULTS RENDERING
    =============================== */
 function renderResults(output, platform) {
+  lastGeneratedOutput = { output, platform };
   const container = document.getElementById('gen-results');
   container.classList.remove('hidden');
   let html = '<div class="result-card"><div class="result-header"><h3>' + platform.charAt(0).toUpperCase() + platform.slice(1) + ' Listing</h3>';
-  html += '<button class="btn btn-sm btn-secondary" onclick="copyAll()">Copy All</button></div><div class="result-body">';
+  html += '<div style="display:flex;gap:.5rem">';
+  if (platform === 'shopify') html += '<button class="btn btn-sm btn-primary" onclick="publishToShopify()">🛒 Publish to Shopify</button>';
+  html += '<button class="btn btn-sm btn-secondary" onclick="copyAll()">Copy All</button></div></div><div class="result-body">';
 
   const fields = getPlatformFields(output, platform);
   fields.forEach(f => {
@@ -1599,6 +1628,7 @@ async function loadProfile() {
   if (!currentUser) return;
   document.getElementById('profile-email').value = currentUser.email || '';
   document.getElementById('profile-name').value = currentUser.user_metadata?.full_name || '';
+  checkShopifyStatus();
 }
 
 async function saveProfile() {
@@ -1615,6 +1645,90 @@ async function saveProfile() {
       // Update Supabase user metadata too
       if (sb) await sb.auth.updateUser({ data: { full_name: name } });
     } else throw new Error('Failed to save');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ===============================
+   SHOPIFY INTEGRATION
+   =============================== */
+async function connectShopify() {
+  const domain = document.getElementById('shopify-domain').value.trim();
+  if (!domain) { toast('Please enter your Shopify store domain', 'error'); return; }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(domain)) {
+    toast('Please enter a valid domain (e.g. yourstore.myshopify.com)', 'error'); return;
+  }
+  try {
+    const token = await getToken();
+    window.location.href = `/api/shopify-auth?shop=${encodeURIComponent(domain)}&token=${encodeURIComponent(token)}`;
+  } catch (e) { toast('Authentication error. Please sign in again.', 'error'); }
+}
+
+async function checkShopifyStatus() {
+  try {
+    const token = await getToken();
+    const res = await fetch('/api/shopify-status', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    shopifyConnected = data.connected;
+    if (data.connected && data.shop) {
+      document.getElementById('shopify-disconnected').classList.add('hidden');
+      document.getElementById('shopify-connected-ui').classList.remove('hidden');
+      document.getElementById('shopify-shop-name').textContent = data.shop;
+    } else {
+      document.getElementById('shopify-disconnected').classList.remove('hidden');
+      document.getElementById('shopify-connected-ui').classList.add('hidden');
+    }
+  } catch (e) { console.error('Shopify status check failed:', e); }
+}
+
+async function disconnectShopify() {
+  if (!confirm('Disconnect your Shopify store? You can reconnect later.')) return;
+  try {
+    const token = await getToken();
+    const res = await fetch('/api/user-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ shopify_access_token: null, shopify_shop: null })
+    });
+    if (res.ok) {
+      shopifyConnected = false;
+      document.getElementById('shopify-disconnected').classList.remove('hidden');
+      document.getElementById('shopify-connected-ui').classList.add('hidden');
+      toast('Shopify disconnected', 'success');
+    } else throw new Error('Failed to disconnect');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function publishToShopify() {
+  if (!lastGeneratedOutput) { toast('No generated content to publish', 'error'); return; }
+  if (!shopifyConnected) { toast('Connect your Shopify store first in Profile settings', 'error'); return; }
+  const { output, platform } = lastGeneratedOutput;
+  try {
+    const token = await getToken();
+    const res = await fetch('/api/shopify-publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        title: output.seoTitle || output.title || 'New Product',
+        bodyHtml: output.description || '',
+        tags: Array.isArray(output.tags) ? output.tags : [],
+        metafields: output.metaDescription ? [{
+          namespace: 'seo',
+          key: 'description',
+          value: output.metaDescription,
+          type: 'single_line_text_field'
+        }] : []
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to publish to Shopify');
+    }
+    const data = await res.json();
+    toast('Published to Shopify!', 'success');
+    if (data.productUrl) window.open(data.productUrl, '_blank');
   } catch (e) { toast(e.message, 'error'); }
 }
 

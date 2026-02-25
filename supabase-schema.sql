@@ -139,10 +139,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    INSERT INTO public.profiles (id, full_name)
+    INSERT INTO public.profiles (id, full_name, credits_balance)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NULL)
+        COALESCE(NEW.raw_user_meta_data->>'full_name', NULL),
+        100
     )
     ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
